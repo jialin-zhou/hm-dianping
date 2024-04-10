@@ -59,6 +59,7 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
             return true;
         }
 
+
         // 2.基于token获取redis中的数据
         String key = RedisConstants.LOGIN_USER_KEY + token;
         Map<Object, Object> userMap = stringRedisTemplate.opsForHash().entries(key);
