@@ -103,7 +103,6 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 //        return shop;
 //    }
 
-
     @Override
     @Transactional
     public Result update(Shop shop) {

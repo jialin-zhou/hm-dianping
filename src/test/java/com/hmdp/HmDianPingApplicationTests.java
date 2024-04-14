@@ -19,8 +19,6 @@ class HmDianPingApplicationTests {
 
     @Resource
     private ShopServiceImpl shopService;
-
-
     @Test
     void testSaveShop() throws InterruptedException {
         Shop shop = shopService.getById(1L);
