@@ -29,6 +29,7 @@ public class CacheClient {
         this.stringRedisTemplate = stringRedisTemplate;
     }
 
+
     public void set(String key, Object value, Long time, TimeUnit unit){
         stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(value), time, unit);
     }
