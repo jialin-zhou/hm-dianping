@@ -22,6 +22,7 @@ public class RedisIdWorker {
         this.stringRedisTemplate = stringRedisTemplate;
     }
     public long nextId(String keyPrefix) {
+
         // 1.生成时间戳
         long currentTime = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC);
         long timestamp = currentTime - BEGIN_TIMESTAMP;
