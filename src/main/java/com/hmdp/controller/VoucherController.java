@@ -43,6 +43,7 @@ public class VoucherController {
     public Result addSeckillVoucher(@RequestBody Voucher voucher) {
         voucherService.addSeckillVoucher(voucher);
         return Result.ok(voucher.getId());
+
     }
 
     /**
