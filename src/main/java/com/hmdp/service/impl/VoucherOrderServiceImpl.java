@@ -9,6 +9,8 @@ import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
+import org.springframework.aop.framework.AopContext;
+import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +35,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private RedisIdWorker redisIdWorker;
 
     @Override
-    @Transactional
+
     public Result seckillVoucher(Long voucherId) {
         SeckillVoucher vocher = seckillVoucherService.getById(voucherId);
         // 1.判断是否在时间内
@@ -48,6 +50,17 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return Result.fail("库存不足");
         }
 
+        Long userId = UserHolder.getUser().getId();
+        synchronized (userId.toString().intern()) {
+            // 获取代理对象进行调用
+            IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
+            // 先让事务提交完 再释放锁
+            return proxy.createVoucherOrder(voucherId);
+        }
+    }
+
+    @Transactional
+    public Result createVoucherOrder(Long voucherId) {
         // 一人一单业务
         // 查询订单
         Long userId = UserHolder.getUser().getId();
@@ -78,6 +91,5 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         voucherOrder.setUserId(userID);
         save(voucherOrder);
         return Result.ok(orderID);
-
     }
 }
