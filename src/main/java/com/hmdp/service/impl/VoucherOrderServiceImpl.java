@@ -49,7 +49,6 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         if (vocher.getStock() < 1){
             return Result.fail("库存不足");
         }
-
         Long userId = UserHolder.getUser().getId();
         synchronized (userId.toString().intern()) {
             // 获取代理对象进行调用
