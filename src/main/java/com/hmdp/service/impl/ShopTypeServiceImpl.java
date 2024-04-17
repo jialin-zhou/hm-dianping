@@ -29,24 +29,30 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
+    /**
+     * 查询商铺类型，优先从Redis缓存中读取，若缓存中不存在则从数据库查询，并将查询结果存入Redis缓存。
+     *
+     * @return Result对象，包含查询到的商铺类型列表或错误信息。
+     */
     @Override
     public Result queryShopType() {
-        // 1.从redis查询商铺类型
+        // 从redis查询商铺类型
         String shopTypeJson = stringRedisTemplate.opsForValue().get(CACHE_SHOP_TYPE_KEY);
-        // 2.存在则直接返回
+        // 如果缓存中存在商铺类型数据，则直接返回
         if (StrUtil.isNotBlank(shopTypeJson)){
             List<ShopType> shopTypes = JSONUtil.toList(shopTypeJson, ShopType.class);
             return Result.ok(shopTypes);
         }
-        // 3.不存在则查询数据库
+        // 缓存中不存在商铺类型数据时，从数据库中查询
         List<ShopType> shopTypeList = query().orderByAsc("sort").list();
-        // 4.数据库不存在则返回错误
+        // 如果数据库中也不存在商铺类型数据，则返回错误信息
         if (shopTypeList.isEmpty()){
             return Result.fail("商铺类型不存在");
         }
-        // 5.存在则写入redis
+        // 将从数据库查询到的商铺类型数据写入Redis缓存
         stringRedisTemplate.opsForValue().set(CACHE_SHOP_TYPE_KEY,JSONUtil.toJsonStr(shopTypeList));
-        // 6.返回结果
+        // 返回查询结果
         return Result.ok(shopTypeList);
     }
+
 }

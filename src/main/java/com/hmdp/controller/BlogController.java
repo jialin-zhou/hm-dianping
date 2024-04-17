@@ -32,16 +32,23 @@ public class BlogController {
     @Resource
     private IUserService userService;
 
+    /**
+     * 保存博客文章
+     *
+     * @param blog 接收前端传来的博客对象，包含博客的全部信息
+     * @return 返回操作结果，其中包含新保存的博客的ID
+     */
     @PostMapping
     public Result saveBlog(@RequestBody Blog blog) {
-        // 获取登录用户
+        // 获取当前登录的用户信息
         UserDTO user = UserHolder.getUser();
-        blog.setUserId(user.getId());
-        // 保存探店博文
+        blog.setUserId(user.getId()); // 设置博客的作者ID为当前登录用户的ID
+        // 调用服务层方法，保存博客到数据库
         blogService.save(blog);
-        // 返回id
+        // 返回保存成功的结果，并包含新博客的ID
         return Result.ok(blog.getId());
     }
+
 
     @PutMapping("/like/{id}")
     public Result likeBlog(@PathVariable("id") Long id) {

@@ -42,69 +42,92 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
+    /**
+     * 发送验证码到指定手机
+     *
+     * @param phone 手机号码，用于发送验证码
+     * @param session HttpSession对象，用于保持会话，本方法未使用该参数
+     * @return Result对象，包含操作结果的状态和信息。如果手机号格式错误，返回错误信息；否则，返回操作成功的提示。
+     */
     @Override
     public Result sendCode(String phone, HttpSession session) {
-        // 1.校验手机号
+        // 1. 校验手机号格式是否合法
         if (RegexUtils.isPhoneInvalid(phone)){
-            // 2.如果不符合返回错误信息
+            // 手机号格式不合法时，返回错误信息
             return Result.fail("手机号格式错误!");
         }
-        // 3.符合 生产验证码
+        // 2. 生成6位数字验证码
         String code = RandomUtil.randomNumbers(6);
-        // 4.保存到redis中  set key value ex 2
+        // 3. 将验证码保存到Redis中，设置过期时间为2分钟
         stringRedisTemplate.opsForValue().set(LOGIN_CODE_KEY + phone, code, LOGIN_CODE_TTL, TimeUnit.MINUTES);
-        // 5.发送验证码
+        // 4. 打印日志，表示验证码发送成功
         log.debug("发送短信验证码成功，验证码：{}",code);
+        // 5. 返回操作成功的Result对象
         return Result.ok();
     }
 
+
+    /**
+     * 用户登录接口
+     * @param loginForm 登录表单，包含手机号和验证码
+     * @param session HttpSession对象，用于登录状态管理
+     * @return Result对象，表示登录结果，成功返回ok，失败返回错误信息
+     */
     @Override
     public Result login(LoginFormDTO loginForm, HttpSession session) {
-        // 1.校验手机号
+        // 1. 校验手机号格式是否合法
         String phone  = loginForm.getPhone();
         if (RegexUtils.isPhoneInvalid(phone)){
-            // 2.如果不符合返回错误信息
+            // 手机号格式不合法，返回错误信息
             return Result.fail("手机号格式错误!");
         }
-        // 2.从redis中获取验证码并且校验
+        // 2. 从Redis中获取验证码并与输入的验证码进行校验
         Object cacheCode = stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY + phone);
         String code = loginForm.getCode();
         if(cacheCode == null || !cacheCode.toString().equals(code)){
-            // 3.不一致报错
+            // 验证码不匹配，返回错误信息
             return Result.fail("验证码错误!");
         }
-        // 4.一致 根据手机号查询用户 select * from tb_user where phone = ?
+        // 3. 根据手机号查询用户信息
         User user = query().eq("phone", phone).one();
-        // 5.判断用户是否存在
+        // 4. 判断用户是否存在，若不存在则创建新用户
         if (user == null){
-            // 6.不存在 新建用户
+            // 用户不存在，创建新用户
             user = createUserWithPhone(phone);
         }
-        // 7.保存用户信息到redis中
-        // 7.1 生成一个token作为登录令牌
+        // 5. 保存用户信息到Redis中，用于登录状态管理
+        // 5.1 生成登录令牌
         String token = UUID.randomUUID().toString(true);
-        // 7.2 将user对象转为hash存储
+        // 5.2 将用户对象转换为Map形式存储
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
         Map<String, Object> userMap = BeanUtil.beanToMap(userDTO, new HashMap<>(),
                 CopyOptions.create()
                         .setIgnoreNullValue(true)
                         .setFieldValueEditor((fieldName, fieldValue) -> fieldValue.toString()));
-        // 7.3 存储
+        // 5.3 存储用户信息到Redis，并设置过期时间
         String tokenKey = LOGIN_USER_KEY + token;
         stringRedisTemplate.opsForHash().putAll(tokenKey, userMap);
-        // 7.4 设置有效期
         stringRedisTemplate.expire(LOGIN_USER_KEY + token, LOGIN_USER_TTL, TimeUnit.SECONDS);
 
+        // 登录成功，返回成功信息
         return Result.ok();
     }
 
+
+    /**
+     * 使用电话号码创建用户。
+     *
+     * @param phone 用户的电话号码。
+     * @return 创建完成的用户对象。
+     */
     private User createUserWithPhone(String phone) {
-        // 1.新建用户
+        // 1.新建用户并设置电话号码和随机昵称
         User user = new User();
         user.setPhone(phone);
         user.setNickName(SystemConstants.USER_NICK_NAME_PREFIX + RandomUtil.randomString(10));
-        // 2.保存用户
+        // 2.保存用户到数据库
         save(user);
         return user;
     }
+
 }

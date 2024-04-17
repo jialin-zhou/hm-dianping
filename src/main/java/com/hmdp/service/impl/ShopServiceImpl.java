@@ -42,12 +42,15 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     @Resource
     private CacheClient cacheClient;
 
+    /**
+     * 根据ID查询店铺信息。
+     *
+     * @param id 店铺的唯一标识符。
+     * @return 返回查询结果，如果店铺存在则返回成功的查询结果，否则返回失败的查询结果。
+     */
     @Override
     public Result queryById(Long id) {
-        // 缓存穿透
-        // Shop shop1 = cacheClient.queryWithPassThrough(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
-
-        // 互斥锁解决缓存击穿
+        // 使用缓存并应用逻辑过期时间来避免缓存击穿
         Shop shop = cacheClient.queryWithLogicalExpire(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.SECONDS);
         if (shop == null){
             return Result.fail("店铺不存在");
@@ -55,6 +58,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
         return Result.ok(shop);
     }
+
 
 //    public Shop queryWithMutex(Long id){
 //        // 1.从redis查询商铺id
@@ -103,17 +107,25 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 //        return shop;
 //    }
 
+    /**
+     * 更新店铺信息
+     * @param shop 包含更新后店铺信息的对象
+     * @return 返回操作结果，成功返回Result.ok()，失败返回Result.fail("错误信息")
+     */
     @Override
     @Transactional
     public Result update(Shop shop) {
         Long id = shop.getId();
         if (id == null){
+            // 检查店铺id是否为空，如果为空则返回失败结果
             return Result.fail("店铺id不能为空");
         }
-        // 1.更新数据库
+        // 更新数据库中的店铺信息
         updateById(shop);
-        // 2.删除缓存
+        // 删除缓存中对应的店铺信息，以保证缓存与数据库一致
         stringRedisTemplate.delete(CACHE_SHOP_KEY + id);
+        // 返回成功结果
         return Result.ok();
     }
+
 }

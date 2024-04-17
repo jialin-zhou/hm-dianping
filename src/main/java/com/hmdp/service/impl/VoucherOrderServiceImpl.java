@@ -36,59 +36,74 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
     @Override
 
+    /**
+     * 执行秒杀券操作
+     * @param voucherId 秒杀券的ID
+     * @return 返回操作结果，成功则返回秒杀订单信息，失败则返回错误信息
+     */
     public Result seckillVoucher(Long voucherId) {
+        // 根据券ID获取秒杀券信息
         SeckillVoucher vocher = seckillVoucherService.getById(voucherId);
-        // 1.判断是否在时间内
+
+        // 判断秒杀时间是否在有效期内
         if (vocher.getBeginTime().isAfter(LocalDateTime.now())){
             return Result.fail("秒杀尚未开始");
         }
         if (vocher.getBeginTime().isBefore(LocalDateTime.now())){
             return Result.fail("已经结束");
         }
-        // 2.判断库存是否充足
+
+        // 判断库存是否充足
         if (vocher.getStock() < 1){
             return Result.fail("库存不足");
         }
+
+        // 获取当前用户ID
         Long userId = UserHolder.getUser().getId();
+
+        // 使用用户ID作为锁，确保并发安全
         synchronized (userId.toString().intern()) {
-            // 获取代理对象进行调用
+            // 获取代理对象以支持AOP（如事务）进行订单创建
             IVoucherOrderService proxy = (IVoucherOrderService) AopContext.currentProxy();
-            // 先让事务提交完 再释放锁
+
+            // 创建秒杀订单并返回结果
             return proxy.createVoucherOrder(voucherId);
         }
     }
 
+
+    /**
+     * 创建优惠券订单
+     * @param voucherId 优惠券ID
+     * @return Result 结果对象，包含订单ID或错误信息
+     */
     @Transactional
     public Result createVoucherOrder(Long voucherId) {
-        // 一人一单业务
-        // 查询订单
+        // 判断用户是否已经有一单对应的购买
         Long userId = UserHolder.getUser().getId();
         int count = query().eq("user_id", userId).eq("voucher_id", voucherId).count();
-        // 判断订单是否已经存在
         if (count > 0){
             return Result.fail("该用户已经购买过");
         }
 
-        // 3.扣减库存
+        // 扣减优惠券库存
         boolean success = seckillVoucherService.update().
                 setSql("stock = stock - 1").
-                eq("voucher_id", voucherId).gt("stock", 0) // where id = ? and stock > 0
+                eq("voucher_id", voucherId).gt("stock", 0) // 只有在库存大于0时才扣减
                 .update();
         if (!success){
             return Result.fail("库存不足");
         }
 
-        // 4.创建订单
+        // 创建订单
         VoucherOrder voucherOrder = new VoucherOrder();
-        long orderID = redisIdWorker.nextId("order");
-        // 订单id
+        long orderID = redisIdWorker.nextId("order");  // 生成订单ID
         voucherOrder.setId(orderID);
-        // 优惠券id
         voucherOrder.setVoucherId(voucherId);
-        // 下单的用户id
-        Long userID = UserHolder.getUser().getId();
+        Long userID = UserHolder.getUser().getId();  // 获取当前用户ID
         voucherOrder.setUserId(userID);
-        save(voucherOrder);
+        save(voucherOrder);  // 保存订单信息
         return Result.ok(orderID);
     }
+
 }
