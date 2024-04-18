@@ -75,7 +75,7 @@ public class SimpleRedisLock implements ILock{
      * 注意：该方法不接受参数，也不返回任何值。
      */
     @Override
-    public void unLock() {
+    public void unlock() {
         // 执行解锁Lua脚本，传入锁的键名和当前线程ID作为参数
         stringRedisTemplate.execute(
                 UNLOCKSCRIPT,

@@ -10,6 +10,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -39,13 +41,15 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
-    @Override
+    @Resource
+    private RedissonClient redissonClient;
 
     /**
      * 执行秒杀券操作
      * @param voucherId 秒杀券的ID
      * @return 返回操作结果，成功则返回秒杀订单信息，失败则返回错误信息
      */
+    @Override
     public Result seckillVoucher(Long voucherId) {
         // 根据券ID获取秒杀券信息
         SeckillVoucher vocher = seckillVoucherService.getById(voucherId);
@@ -66,10 +70,11 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         // 获取当前用户ID
         Long userId = UserHolder.getUser().getId();
         // 尝试创建锁对象
-        SimpleRedisLock lock = new SimpleRedisLock("order:" + userId , stringRedisTemplate);
+        // SimpleRedisLock lock = new SimpleRedisLock("order:" + userId , stringRedisTemplate);
+        RLock lock = redissonClient.getLock("lock:order:" + userId);
 
         // 获取锁
-        boolean isLock = lock.tryLock(1200L);
+        boolean isLock = lock.tryLock();
         if (!isLock){
             // 获取锁失败，返回错误信息或者重试
             return Result.fail("不允许重复下单");
@@ -81,7 +86,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
             return proxy.createVoucherOrder(voucherId);
         } finally {
             // 释放锁
-            lock.unLock();
+            lock.unlock();
         }
     }
 
