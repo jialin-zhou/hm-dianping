@@ -1,8 +1,13 @@
 package com.hmdp.utils;
 
+import cn.hutool.core.io.resource.ClassPathResource;
 import cn.hutool.core.lang.UUID;
+import org.springframework.core.io.Resource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 public class SimpleRedisLock implements ILock{
@@ -21,6 +26,17 @@ public class SimpleRedisLock implements ILock{
 
     // 为当前线程生成的唯一标识符前缀，用于区分不同线程持有的锁
     private static final String THREAD_PREFIX = UUID.randomUUID().toString(true) + "-";
+
+    // 静态初始化块：初始化用于执行Redis脚本的DefaultRedisScript对象
+    private static final DefaultRedisScript<Long> UNLOCKSCRIPT;
+
+    static {
+        UNLOCKSCRIPT = new DefaultRedisScript<>();
+        // 设置脚本资源的位置，脚本文件unlock.lua位于类路径下
+        UNLOCKSCRIPT.setLocation((Resource) new ClassPathResource("unlock.lua"));
+        // 指定脚本执行结果的类型为Long
+        UNLOCKSCRIPT.setResultType(Long.class);
+    }
 
     /**
      * 构造函数，初始化锁实例。
@@ -52,6 +68,24 @@ public class SimpleRedisLock implements ILock{
         return Boolean.TRUE.equals(success);
     }
 
+
+    /**
+     * 解锁操作。
+     * 该方法通过调用预定义的Lua脚本实现解锁逻辑。它会针对指定的锁键执行Lua脚本，确保锁的正确释放。
+     * 注意：该方法不接受参数，也不返回任何值。
+     */
+    @Override
+    public void unLock() {
+        // 执行解锁Lua脚本，传入锁的键名和当前线程ID作为参数
+        stringRedisTemplate.execute(
+                UNLOCKSCRIPT,
+                Collections.singletonList(KEY_PREFIX + name), // 锁的键名，通过KEY_PREFIX和锁名拼接
+                THREAD_PREFIX + Thread.currentThread().getId() // 当前线程ID，通过THREAD_PREFIX和Java线程的getId()方法获取
+        );
+    }
+
+
+
     /**
      * 释放锁。
      * 此方法首先确定当前线程是否是持有锁的线程，如果是，则释放该锁。
@@ -63,17 +97,16 @@ public class SimpleRedisLock implements ILock{
      * 返回值：
      * 无返回值
      */
-    @Override
-    public void unLock() {
-        // 获取当前线程的标识，格式为"线程前缀+线程ID"
-        String threadId = THREAD_PREFIX + Thread.currentThread().getId();
-        // 从Redis获取当前锁的持有线程标识
-        String id = stringRedisTemplate.opsForValue().get(KEY_PREFIX + name);
-        // 判断当前线程是否是锁的持有者
-        if (threadId.equals(id)) {
-            // 如果是，则释放锁，即从Redis中删除对应的锁键
-            stringRedisTemplate.delete(KEY_PREFIX + name);
-        }
-    }
-
+//    @Override
+//    public void unLock() {
+//        // 获取当前线程的标识，格式为"线程前缀+线程ID"
+//        String threadId = THREAD_PREFIX + Thread.currentThread().getId();
+//        // 从Redis获取当前锁的持有线程标识
+//        String id = stringRedisTemplate.opsForValue().get(KEY_PREFIX + name);
+//        // 判断当前线程是否是锁的持有者
+//        if (threadId.equals(id)) {
+//            // 如果是，则释放锁，即从Redis中删除对应的锁键
+//            stringRedisTemplate.delete(KEY_PREFIX + name);
+//        }
+//    }
 }
