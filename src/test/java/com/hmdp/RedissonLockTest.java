@@ -11,10 +11,8 @@ import javax.annotation.Resource;
 @SpringBootTest
 @Slf4j
 public class RedissonLockTest {
-
     @Resource
     private RedissonClient redissonClient;
-
     private RLock lock;
     /**
      * 方法1获取一次锁
