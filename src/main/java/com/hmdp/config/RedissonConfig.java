@@ -3,11 +3,22 @@ package com.hmdp.config;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration // 标识为配置类
 public class RedissonConfig {
+
+    @Value("${spring.redis.host}")
+    private String host;
+
+    @Value("${spring.redis.port}")
+    private String port;
+
+    @Value("${spring.redis.password}")
+    private String password;
+
 
     /**
      * 创建并返回一个Redisson客户端实例。
@@ -19,7 +30,8 @@ public class RedissonConfig {
     public RedissonClient redissonClient(){
         // 初始化Redisson配置
         Config config = new Config();
-        config.useSingleServer().setAddress("redis://172.27.212.83:6379").setPassword("123321");
+        config.useSingleServer().setAddress("redis://" + this.host + ":" + this.port)
+                .setPassword(this.password);
         // 根据配置创建Redisson客户端
         return Redisson.create(config);
     }
