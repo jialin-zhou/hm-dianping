@@ -46,6 +46,7 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
         List<Voucher> vouchers = getBaseMapper().queryVoucherOfShop(shopId);
         // 返回查询结果
         return Result.ok(vouchers);
+
     }
 
 
