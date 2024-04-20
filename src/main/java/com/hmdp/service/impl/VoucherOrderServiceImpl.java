@@ -139,7 +139,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
                     // 4.确认消息 XACK
                     stringRedisTemplate.opsForStream().acknowledge("s1", "g1", record.getId());
                 } catch (Exception e) {
-                    log.error("处理订单异常", e);
+                    log.error("处理订单异常111", e);
                     handlePendingList();
                 }
             }
