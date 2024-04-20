@@ -77,13 +77,17 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
      * 该方法不返回任何值，但会通过设置blog对象的isLike属性来表示是否已点赞
      */
     private void isBlogLiked(Blog blog) {
+        if (UserHolder.getUser() == null) {
+            // 如果当前用户未登录，则无法判断是否已点赞，直接返回
+            return;
+        }
         // 获取当前登录用户的ID
         Long userId = UserHolder.getUser().getId();
         Long id = blog.getId();
         // 检查该博客是否被当前用户点赞
-        Boolean isMember = stringRedisTemplate.opsForSet().isMember(BLOG_LIKED_KEY + id, userId.toString());
+        Double score = stringRedisTemplate.opsForZSet().score(BLOG_LIKED_KEY + id, userId.toString());
         // 设置blog对象的isLike属性来表示是否已点赞
-        blog.setIsLike(BooleanUtil.isTrue(isMember));
+        blog.setIsLike(score != null);
     }
 
 
@@ -125,25 +129,52 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         // 获取当前登录用户的ID
         Long userId = UserHolder.getUser().getId();
         // 检查当前用户是否已经为该博客点赞
-        Boolean isMember = stringRedisTemplate.opsForSet().isMember(BLOG_LIKED_KEY + id, userId.toString());
-
+        Double score = stringRedisTemplate.opsForZSet().score(BLOG_LIKED_KEY + id, userId.toString());
         // 用户未点赞时的操作
-        if (BooleanUtil.isTrue(isMember)){
+        if (score == null){
             // 在数据库中将点赞数加1
             boolean isSuccess = update().setSql("liked = liked + 1").eq("id", id).update();
             // 如果更新成功，则将用户ID添加到Redis的点赞集合中
             if (isSuccess){
-                stringRedisTemplate.opsForSet().add(BLOG_LIKED_KEY + id, userId.toString());
+                stringRedisTemplate.opsForZSet().add(BLOG_LIKED_KEY + id, userId.toString(), System.currentTimeMillis());
             }
         }else {
             // 在数据库中将点赞数减1
             boolean isSuccess = update().setSql("liked = liked - 1").eq("id", id).update();
             // 如果更新成功，则从Redis的点赞集合中移除用户ID
-            stringRedisTemplate.opsForSet().remove(BLOG_LIKED_KEY + id, userId.toString());
+            stringRedisTemplate.opsForZSet().remove(BLOG_LIKED_KEY + id, userId.toString());
         }
         // 返回操作成功的结果
         return Result.ok();
     }
+
+    /**
+     * 查询指定博客的点赞前五名的用户信息。
+     *
+     * @param id 博客的ID，用于查询对应的点赞信息。
+     * @return 返回一个Result对象，其中包含了点赞前五名的用户信息列表。如果没有任何点赞信息，则返回一个空列表。
+     */
+    @Override
+    public Result queryBlogLikes(Long id) {
+        // 从Redis中获取top5点赞用户ID
+        Set<String> top5 = stringRedisTemplate.opsForZSet().range(BLOG_LIKED_KEY + id, 0, 4);
+        if (top5 == null || top5.isEmpty()){
+            // 没有点赞时返回空列表
+            return Result.ok(Collections.emptyList());
+        }
+        // 将字符串形式的ID转换为Long类型，并查询用户信息
+        List<Long> idx = top5.stream().map(Long::valueOf).collect(Collectors.toList());
+        String idStr = StrUtil.join(",", idx);
+        // 根据用户ID列表查询并转换用户信息
+        List<UserDTO> userDTOS = userService.query().in("id", idx)
+                .last("ORDER BY FILED(id," + idStr + ")").list()
+                .stream()
+                .map(user -> BeanUtil.copyProperties(user, UserDTO.class))
+                .collect(Collectors.toList());
+        return Result.ok(userDTOS);
+    }
+
+
 
 
     /**
