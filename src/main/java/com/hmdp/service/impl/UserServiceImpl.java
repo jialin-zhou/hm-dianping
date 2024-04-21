@@ -117,63 +117,77 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return Result.ok(token);
     }
 
+    /**
+     * 用户签到方法。
+     * 无参数。
+     * 返回值：操作结果，成功返回ok。
+     */
     @Override
     public Result sign() {
-        // 1.获取当前登录用户
+        // 1. 获取当前登录用户
         Long userId = UserHolder.getUser().getId();
-        // 2.获取日期
+        // 2. 获取当前日期时间
         LocalDateTime now = LocalDateTime.now();
-        // 3.拼接key
+        // 3. 拼接签到key，格式为：前缀:用户ID_年月
         String keySuffix = now.format(DateTimeFormatter.ofPattern(":yyyyMM"));
         String key = USER_SIGN_KEY + userId + keySuffix;
-        // 4.获取今天是本月的第几天
+        // 4. 获取当前是本月的第几天
         int dayOfMonth = now.getDayOfMonth();
-        // 5.写入Redis SETBIT key offset 1
+        // 5. 在Redis中为当天的签到位置设置为1，表示已签到
         stringRedisTemplate.opsForValue().setBit(key, dayOfMonth - 1, true);
         return Result.ok();
     }
 
+
+    /**
+     * 计算当前用户本月的签到天数。
+     * 无需参数。
+     * @return Result对象，其中包含本月的签到天数。如果用户未签到，则返回0。
+     */
     @Override
     public Result signCount() {
-        // 1.获取当前登录用户
+        // 1. 获取当前登录用户
         Long userId = UserHolder.getUser().getId();
-        // 2.获取日期
+        // 2. 获取当前日期
         LocalDateTime now = LocalDateTime.now();
-        // 3.拼接key
+        // 3. 拼接用于Redis存储的key
         String keySuffix = now.format(DateTimeFormatter.ofPattern(":yyyyMM"));
         String key = USER_SIGN_KEY + userId + keySuffix;
-        // 4.获取今天是本月的第几天
+        // 4. 获取当前日期在本月的天数
         int dayOfMonth = now.getDayOfMonth();
-        // 5.获取本月截止今天为止的所有的签到记录，返回的是一个十进制的数字 BITFIELD sign:5:202203 GET u14 0
+        // 5. 从Redis获取截止到今天的签到记录
         List<Long> result = stringRedisTemplate.opsForValue().bitField(
                 key,
                 BitFieldSubCommands.create()
                         .get(BitFieldSubCommands.BitFieldType.unsigned(dayOfMonth)).valueAt(0)
         );
         if (result == null || result.isEmpty()) {
-            // 没有任何签到结果
+            // 没有签到记录，返回0
             return Result.ok(0);
         }
         Long num = result.get(0);
         if (num == null || num == 0) {
+            // 没有签到，返回0
             return Result.ok(0);
         }
-        // 6.循环遍历
+        // 6. 计算签到天数
         int count = 0;
         while (true) {
-            // 6.1.让这个数字与1做与运算，得到数字的最后一个bit位  // 判断这个bit位是否为0
+            // 6.1. 判断最后一个bit位是否为1，代表已签到
             if ((num & 1) == 0) {
-                // 如果为0，说明未签到，结束
+                // 为0，未签到，结束循环
                 break;
-            }else {
-                // 如果不为0，说明已签到，计数器+1
+            } else {
+                // 为1，已签到，计数器加1
                 count++;
             }
-            // 把数字右移一位，抛弃最后一个bit位，继续下一个bit位
+            // 移动到下一个bit位
             num >>>= 1;
         }
+        // 返回签到天数
         return Result.ok(count);
     }
+
 
 
     /**

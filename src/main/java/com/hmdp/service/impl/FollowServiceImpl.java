@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.hmdp.utils.RedisConstants.FOLLOW_KEY;
+
 /**
  * <p>
  *  服务实现类
@@ -59,7 +61,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
             boolean isSuccess = save(follow);// 保存关注关系
             if (isSuccess){
                 // 关注成功，更新Redis中的关注数
-                stringRedisTemplate.opsForSet().add("follow:" + userId, followUserId.toString());
+                stringRedisTemplate.opsForSet().add(FOLLOW_KEY + userId, followUserId.toString());
             }
         }else{
             // 取消关注操作
@@ -67,7 +69,7 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
                     .eq("user_id", userId).eq("follow_user_id", followUserId));// 根据用户ID和被关注用户ID删除关注关系
             // 把关注用户的id从redis中移除
             if (isSuccess){
-                stringRedisTemplate.opsForSet().remove("follow:" + userId, followUserId.toString());
+                stringRedisTemplate.opsForSet().remove(FOLLOW_KEY + userId, followUserId.toString());
             }
         }
         return Result.ok(); // 返回操作成功的结果
@@ -101,8 +103,8 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
         // 获取当前操作用户的ID
         Long userId = UserHolder.getUser().getId();
         // 构造当前用户和目标用户的关注键
-        String key = "follow:" + userId;
-        String key2 = "follow:" + id;
+        String key = FOLLOW_KEY + userId;
+        String key2 = FOLLOW_KEY + id;
         // 查找当前用户和目标用户之间关注的交集
         Set<String> intersect = stringRedisTemplate.opsForSet().intersect(key, key2);
         // 如果没有交集，则返回空列表
