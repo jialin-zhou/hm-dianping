@@ -84,4 +84,24 @@ public class BlogController {
         return blogService.queryBlogById(id);
     }
 
+    /**
+     * 根据用户ID查询博客列表。
+     *
+     * @param current 当前页码，默认为1。
+     * @param id 用户ID。
+     * @return 返回博客列表的查询结果，包括当前页的博客记录。
+     */
+    @GetMapping("/of/user")
+    public Result queryBlogByUserId(
+            @RequestParam(value = "current", defaultValue = "1") Integer current,
+            @RequestParam("id") Long id) {
+        // 根据用户ID查询博客，分页获取数据
+        Page<Blog> page = blogService.query()
+                .eq("user_id", id).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
+        // 提取当前页的博客记录
+        List<Blog> records = page.getRecords();
+        return Result.ok(records);
+    }
+
+
 }
