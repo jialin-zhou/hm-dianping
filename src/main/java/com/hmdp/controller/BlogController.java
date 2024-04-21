@@ -62,17 +62,24 @@ public class BlogController {
         return blogService.queryBlogLikes(id);
     }
 
+    /**
+     * 查询我的博客列表
+     *
+     * @param current 当前页码，默认为1
+     * @return Result对象，包含当前页的博客列表
+     */
     @GetMapping("/of/me")
     public Result queryMyBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
-        // 获取登录用户
+        // 获取当前登录的用户
         UserDTO user = UserHolder.getUser();
-        // 根据用户查询
+        // 根据用户ID进行查询，设置分页信息
         Page<Blog> page = blogService.query()
                 .eq("user_id", user.getId()).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
-        // 获取当前页数据
+        // 获取当前页的博客列表
         List<Blog> records = page.getRecords();
         return Result.ok(records);
     }
+
 
     @GetMapping("/hot")
     public Result queryHotBlog(@RequestParam(value = "current", defaultValue = "1") Integer current) {
