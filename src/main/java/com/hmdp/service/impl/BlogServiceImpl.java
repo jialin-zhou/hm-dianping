@@ -207,6 +207,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return Result.ok(blog.getId());
     }
 
+
     /**
      * 查询用户关注的博客列表
      * @param max 只返回得分不大于max的成员。如果想获取得分最小的成员, 使用负无穷大。
