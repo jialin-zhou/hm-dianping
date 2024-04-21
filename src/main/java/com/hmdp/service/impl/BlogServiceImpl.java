@@ -200,7 +200,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         // 给所有粉丝推送新博客信息
         for (Follow follow : follows){
             Long userId = follow.getUserId(); // 粉丝的用户ID
-            String key = "feed:" + userId; // 构造粉丝的动态消息键
+            String key = FEED_KEY + userId; // 构造粉丝的动态消息键
             stringRedisTemplate.opsForZSet().add(key, blog.getId().toString(), System.currentTimeMillis()); // 将新博客ID添加到粉丝的动态消息队列中
         }
         // 返回成功保存的博客ID
@@ -217,9 +217,10 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     public Result queryBlogOfFollow(Long max, Integer offset) {
         // 获取当前用户ID
         Long userId = UserHolder.getUser().getId();
+
         // 从Redis的有序集合中查询出符合条件的博客ID，按时间戳逆序排列
         Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate.opsForZSet()
-                .reverseRangeByScoreWithScores(FEED_KEY + userId, max, System.currentTimeMillis(), offset, 2);
+                .reverseRangeByScoreWithScores(FEED_KEY + userId, 0, max, offset, 2);
         // 如果没有查询到数据，则直接返回空结果
         if (typedTuples == null || typedTuples.isEmpty()){
             return Result.ok();
