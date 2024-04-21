@@ -39,13 +39,7 @@ public class BlogController {
      */
     @PostMapping
     public Result saveBlog(@RequestBody Blog blog) {
-        // 获取当前登录的用户信息
-        UserDTO user = UserHolder.getUser();
-        blog.setUserId(user.getId()); // 设置博客的作者ID为当前登录用户的ID
-        // 调用服务层方法，保存博客到数据库
-        blogService.save(blog);
-        // 返回保存成功的结果，并包含新博客的ID
-        return Result.ok(blog.getId());
+        return blogService.saveBlog(blog);
     }
 
     @PutMapping("/like/{id}")
@@ -108,6 +102,12 @@ public class BlogController {
         // 提取当前页的博客记录
         List<Blog> records = page.getRecords();
         return Result.ok(records);
+    }
+
+    @GetMapping("/of/follow")
+    public Result queryBlogOfFollow(
+            @RequestParam("lastId") Long max, @RequestParam(value = "offset", defaultValue = "0") Integer offset){
+        return blogService.queryBlogOfFollow(max, offset);
     }
 
 

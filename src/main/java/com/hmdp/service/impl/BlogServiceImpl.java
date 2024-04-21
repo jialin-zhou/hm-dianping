@@ -47,6 +47,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    @Resource
+    private IFollowService followService;
     /**
      * 根据ID查询博客信息。
      *
@@ -176,6 +179,81 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         return Result.ok(userDTOS);
     }
 
+    /**
+     * 保存博客文章
+     * @param blog 探店笔记对象，包含文章内容等信息
+     * @return 返回保存结果，成功返回笔记的ID，失败返回错误信息
+     */
+    @Override
+    public Result saveBlog(Blog blog) {
+        // 获取当前登录的用户信息
+        UserDTO user = UserHolder.getUser();
+        blog.setUserId(user.getId()); // 设置博客作者的用户ID
+        // 保存博客到数据库
+        boolean isSuccess = save(blog);
+        if (!isSuccess){
+            // 如果保存失败，返回失败信息
+            return Result.fail("新增笔记失败");
+        }
+        // 查询当前用户的所有粉丝
+        List<Follow> follows = followService.query().eq("follow_user_id", user.getId()).list();
+        // 给所有粉丝推送新博客信息
+        for (Follow follow : follows){
+            Long userId = follow.getUserId(); // 粉丝的用户ID
+            String key = "feed:" + userId; // 构造粉丝的动态消息键
+            stringRedisTemplate.opsForZSet().add(key, blog.getId().toString(), System.currentTimeMillis()); // 将新博客ID添加到粉丝的动态消息队列中
+        }
+        // 返回成功保存的博客ID
+        return Result.ok(blog.getId());
+    }
+
+    /**
+     * 查询用户关注的博客列表
+     * @param max 只返回得分不大于max的成员。如果想获取得分最小的成员, 使用负无穷大。
+     * @param offset 返回结果的开始位置（偏移量）
+     * @return 返回查询结果，包括博客列表、偏移量和最小时间戳
+     */
+    @Override
+    public Result queryBlogOfFollow(Long max, Integer offset) {
+        // 获取当前用户ID
+        Long userId = UserHolder.getUser().getId();
+        // 从Redis的有序集合中查询出符合条件的博客ID，按时间戳逆序排列
+        Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate.opsForZSet()
+                .reverseRangeByScoreWithScores(FEED_KEY + userId, max, System.currentTimeMillis(), offset, 2);
+        // 如果没有查询到数据，则直接返回空结果
+        if (typedTuples == null || typedTuples.isEmpty()){
+            return Result.ok();
+        }
+        // 解析查询结果，获取博客ID列表和最小时间戳
+        List<Long> ids = new ArrayList<>(typedTuples.size());
+        long minTime = 0;
+        int os = 1; // 计算偏移调整量
+        for (ZSetOperations.TypedTuple<String> tuple : typedTuples){
+            ids.add(Long.valueOf(tuple.getValue()));
+            long time = tuple.getScore().longValue();
+            if (time == minTime){
+                os ++;
+            }else {
+                minTime = time;
+                os = 1;
+            }
+            minTime = tuple.getScore().longValue(); // 更新最小时间戳
+        }
+        // 根据博客ID查询博客详情，并按ID顺序排列
+        String idStr = StrUtil.join(",", ids);
+        List<Blog> blogs = query().in("id", ids).last("ORDER BY FIELD(id," + idStr + ")").list();
+        // 为每个博客查询相关用户信息和是否被点赞
+        for (Blog blog : blogs){
+            queryBlogUser(blog);
+            isBlogLiked(blog);
+        }
+        // 封装查询结果并返回
+        ScrollResult r = new ScrollResult();
+        r.setList(blogs);
+        r.setOffset(os);
+        r.setMinTime(minTime);
+        return Result.ok(r);
+    }
 
 
 
