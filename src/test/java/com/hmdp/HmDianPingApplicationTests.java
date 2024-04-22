@@ -118,4 +118,5 @@ class HmDianPingApplicationTests {
             stringRedisTemplate.opsForGeo().add(key, locations);
         }
     }
+
 }

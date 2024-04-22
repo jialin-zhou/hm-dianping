@@ -24,6 +24,9 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
         this.stringRedisTemplate = stringRedisTemplate;
     }
 
+
+
+
     /**
      * 在请求处理之前进行拦截。
      * 主要用于处理请求时的token验证，如果验证通过，则允许请求继续；
