@@ -1,6 +1,7 @@
 package com.hmdp;
 
 import cn.hutool.core.lang.hash.Hash;
+import cn.hutool.core.util.RandomUtil;
 import com.hmdp.entity.Shop;
 import com.hmdp.service.impl.ShopServiceImpl;
 import com.hmdp.utils.CacheClient;
@@ -118,5 +119,24 @@ class HmDianPingApplicationTests {
             stringRedisTemplate.opsForGeo().add(key, locations);
         }
     }
+
+    @Test
+    void testHyperLogLog() {
+        String[] values = new String[1000];
+        int j = 0;
+        for (int i = 0; i < 10000000; i++) {
+            j = i % 1000;
+            values[j] = "user_" + i;
+            if (j == 999) {
+                j = 0;
+                stringRedisTemplate.opsForHyperLogLog().add("hll2", values);
+            }
+        }
+        // 统计数量
+        Long count = stringRedisTemplate.opsForHyperLogLog().size("hll2");
+        System.out.println("count = " + count);
+    }
+
+
 
 }
