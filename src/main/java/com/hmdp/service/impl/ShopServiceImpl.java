@@ -139,6 +139,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         return Result.ok();
     }
 
+
     /**
      * 根据商店类型、页码以及坐标查询商店信息。
      * 如果提供了坐标（x和y非空），则按照坐标附近的距离排序并分页查询商店；

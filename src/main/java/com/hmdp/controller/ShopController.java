@@ -76,6 +76,7 @@ public class ShopController {
         return shopService.queryShopByType(typeId, current, x, y);
     }
 
+
     /**
      * 根据商铺名称关键字分页查询商铺信息
      * @param name 商铺名称关键字
