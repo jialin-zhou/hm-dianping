@@ -29,8 +29,7 @@ import static com.hmdp.utils.RedisConstants.FOLLOW_KEY;
  *  服务实现类
  * </p>
  *
- * @author 虎哥
- * @since 2021-12-22
+ * @author jialin.zhou
  */
 @Service
 public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> implements IFollowService {

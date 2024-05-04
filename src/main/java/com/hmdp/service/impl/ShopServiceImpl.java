@@ -40,8 +40,7 @@ import static com.hmdp.utils.RedisConstants.*;
  *  服务实现类
  * </p>
  *
- * @author 虎哥
- * @since 2021-12-22
+ * @author jialin.zhou
  */
 @Slf4j
 @Service
@@ -70,51 +69,61 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         return Result.ok(shop);
     }
 
-
+//    /**
+//     * 带互斥锁的查询商铺方法
+//     * 本方法首先尝试从Redis缓存中查询商铺信息，如果缓存中存在则直接返回缓存数据。
+//     * 如果缓存中不存在或数据为空，则尝试获取互斥锁进行数据的重建和缓存更新。
+//     * 在获取互斥锁失败的情况下，会进行重试，以避免数据竞争。
+//     *
+//     * @param id 商铺的唯一标识符
+//     * @return 返回查询到的商铺对象，如果未查询到则返回null
+//     */
 //    public Shop queryWithMutex(Long id){
-//        // 1.从redis查询商铺id
+//        // 从Redis查询商铺id，尝试获取缓存中的商铺数据
 //        String shopJson = stringRedisTemplate.opsForValue().get(CACHE_SHOP_KEY + id);
-//        // 2.判断是否存在
+//
+//        // 判断缓存中是否存在商铺数据
 //        if (StrUtil.isNotBlank(shopJson)){
-//            // 3.存在 直接返回
+//            // 缓存中存在，直接返回解析后的商铺对象
 //            return JSONUtil.toBean(shopJson, Shop.class);
 //        }
-//        // 判断命中的是否是空值
+//
+//        // 判断是否命中的缓存是空值
 //        if (shopJson != null){
-//            // 返回错误信息
+//            // 返回错误信息，表示未查询到商铺
 //            return null;
 //        }
-//        // 4.实现缓存重建
-//        // 4.1获取互斥锁
+//
+//        // 尝试获取互斥锁进行缓存重建
 //        Shop shop = null;
 //        try {
+//            // 尝试获取锁，如果失败则休眠后重试
 //            boolean isLock = tryLock(LOCK_SHOP_KEY + id);
-//            // 4.2判断是否获取成功
 //            if (!isLock){
-//                // 4.3失败，则休眠并重试
 //                Thread.sleep(50);
-//                return queryWithMutex(id);
+//                return queryWithMutex(id); // 重试查询
 //            }
-//            // 4.4 成功 根据id查询商铺
+//
+//            // 获取锁成功，从数据库查询商铺信息
 //            shop = getById(id);
-//            // 模拟重建的延时
-//            Thread.sleep(200);
-//            // 5.不存在 返回错误
+//            Thread.sleep(200); // 模拟数据重建的延时
+//
+//            // 如果查询到的商铺为空，则在缓存中存储空值并返回错误信息
 //            if (shop == null) {
-//                // 将空值写入redis
 //                stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
-//                // 返回错误信息
 //                return null;
 //            }
-//            // 6.存在 写入redis
+//
+//            // 将查询到的商铺数据写入缓存
 //            stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, JSONUtil.toJsonStr(shop), CACHE_SHOP_TTL, TimeUnit.MINUTES);
 //        } catch (InterruptedException e) {
 //            throw new RuntimeException(e);
 //        } finally {
-//            // 7.释放互斥锁
+//            // 无论如何都释放互斥锁
 //            unLock(LOCK_SHOP_KEY + id);
 //        }
-//        // 8.返回
+//
+//        // 返回查询到的商铺对象
 //        return shop;
 //    }
 
@@ -138,9 +147,6 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         // 返回成功结果
         return Result.ok();
     }
-
-
-
 
     /**
      * 根据商店类型、页码以及坐标查询商店信息。
@@ -205,6 +211,4 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         // log.info("店铺信息: {}", shops);
         return Result.ok(shops);
     }
-
-
 }

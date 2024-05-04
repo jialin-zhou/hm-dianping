@@ -20,8 +20,7 @@ import java.util.List;
  * 前端控制器
  * </p>
  *
- * @author 虎哥
- * @since 2021-12-22
+ * @author jialin.zhou
  */
 @RestController
 @RequestMapping("/blog")
@@ -104,11 +103,20 @@ public class BlogController {
         return Result.ok(records);
     }
 
+    /**
+     * 查询关注者的博客
+     *
+     * @param max 上一次查询的最小时间戳 提供一个上界ID，查询从此ID之后（不包括此ID）的博客，用于分页查询
+     * @param offset 查询偏移量，默认为0，用于分页查询
+     * @return 返回查询到的博客结果，封装在Result对象中
+     */
     @GetMapping("/of/follow")
     public Result queryBlogOfFollow(
             @RequestParam("lastId") Long max, @RequestParam(value = "offset", defaultValue = "0") Integer offset){
+        // 调用blogService中的方法，查询关注者的博客
         return blogService.queryBlogOfFollow(max, offset);
     }
+
 
 
 }

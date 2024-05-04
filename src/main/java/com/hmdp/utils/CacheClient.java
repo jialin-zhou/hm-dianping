@@ -13,6 +13,7 @@ import javax.management.RuntimeMBeanException;
 import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -23,6 +24,11 @@ import static com.hmdp.utils.RedisConstants.*;
 public class CacheClient {
     private StringRedisTemplate stringRedisTemplate;
 
+    /**
+     * 定义一个固定大小的线程池，用于缓存重建任务的执行。
+     * 线程池的最大线程数为10。
+     * 这是一个静态常量，意味着它在类的生命周期中只被初始化一次，并且在所有的方法中都可以访问。
+     */
     private static final ExecutorService CACHE_REBUILD_EXECUTOR = Executors.newFixedThreadPool(10);
 
     public CacheClient(StringRedisTemplate stringRedisTemplate){
@@ -71,6 +77,8 @@ public class CacheClient {
      * @return 查询到的数据，如果未查询到则返回null。
      * @param <R> 查询结果的类型。
      * @param <ID> 数据的唯一标识的类型。
+     *
+     * 使用缓存空值的方式解决缓存击穿问题
      */
     public <R, ID> R queryWithPassThrough(String keyPrefix, ID id, Class<R> type, Function<ID, R> dbFallback, Long time, TimeUnit unit){
         String key = keyPrefix + id;
@@ -115,6 +123,8 @@ public class CacheClient {
      * @param time 缓存时间
      * @param unit 时间单位
      * @return 查询到的数据，如果缓存不存在或已过期，则返回通过dbFallback从数据库获取的数据
+     *
+     * 设置逻辑过期时间解决缓存击穿问题
      */
     public <R, ID> R queryWithLogicalExpire(String keyPrefix, ID id, Class<R> type, Function<ID, R> dbFallback, Long time, TimeUnit unit){
         String key = keyPrefix + id;
